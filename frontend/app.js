@@ -11,7 +11,7 @@
   // ============================================================
   const CONFIG = {
     // CHANGE THIS to your n8n instance webhook base URL
-    API_BASE: 'https://n8n.crocodile-barley.ts.net/webhook/',
+    API_BASE: 'https://n8n.crocodile-barley.ts.net/webhook',
     // PayPal Subscription Plan IDs (set these up in PayPal Developer Dashboard)
     PAYPAL_MONTHLY_PLAN_ID: 'P-XXXXXXXXXXXXXXXXXXXXXXXXXX',
     PAYPAL_YEARLY_PLAN_ID: 'P-YYYYYYYYYYYYYYYYYYYYYYYYYY',
