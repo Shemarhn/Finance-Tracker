@@ -1,0 +1,105 @@
+{
+  "name": "FinanceTracker — PayPal Webhooks",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "finance/paypal/webhook",
+        "responseMode": "responseNode",
+        "options": { "rawBody": true }
+      },
+      "id": "pp-wh",
+      "name": "PayPal Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "ft-paypal-wh-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// PAYPAL WEBHOOK HANDLER\n// Handles: BILLING.SUBSCRIPTION.ACTIVATED, CANCELLED, PAYMENT.SALE.COMPLETED\n// ============================================================\nconst input = $input.first().json;\nlet body = {};\ntry {\n  body = typeof input.body === 'string' ? JSON.parse(input.body) : (input.body || {});\n} catch(e) { body = {}; }\n\nconst headers = input.headers || {};\nconst eventType = body.event_type || '';\nconst resource = body.resource || {};\n\n// PayPal webhook signature verification\n// In production, verify using PayPal's webhook verification API\nconst transmissionId = headers['paypal-transmission-id'] || '';\nconst transmissionTime = headers['paypal-transmission-time'] || '';\nconst certUrl = headers['paypal-cert-url'] || '';\nconst transmissionSig = headers['paypal-transmission-sig'] || '';\n\n// For production, call PayPal's verify-webhook-signature endpoint\n// POST https://api-m.paypal.com/v1/notifications/verify-webhook-signature\n\nlet sql = '';\nlet message = '';\n\nswitch (eventType) {\n  case 'BILLING.SUBSCRIPTION.ACTIVATED': {\n    const subId = resource.id || '';\n    const customId = resource.custom_id || ''; // user_id passed during subscription creation\n    const planId = resource.plan_id || '';\n    const planName = planId.includes('yearly') ? 'pro_yearly' : 'pro_monthly';\n    \n    sql = `\n      UPDATE subscriptions SET status = 'active', plan_name = '${planName}', \n        paypal_subscription_id = '${subId}',\n        current_period_end = NOW() + INTERVAL '${planName === 'pro_yearly' ? '1 year' : '1 month'}',\n        updated_at = NOW()\n      WHERE user_id = '${customId}';\n      \n      -- If no existing subscription, insert one\n      INSERT INTO subscriptions (user_id, paypal_subscription_id, plan_name, status, current_period_end)\n      SELECT '${customId}', '${subId}', '${planName}', 'active', NOW() + INTERVAL '${planName === 'pro_yearly' ? '1 year' : '1 month'}'\n      WHERE NOT EXISTS (SELECT 1 FROM subscriptions WHERE user_id = '${customId}' AND paypal_subscription_id = '${subId}');\n    `;\n    message = `Subscription activated: ${subId} for user ${customId}`;\n    break;\n  }\n  \n  case 'BILLING.SUBSCRIPTION.CANCELLED': {\n    const subId = resource.id || '';\n    sql = `UPDATE subscriptions SET status = 'cancelled', updated_at = NOW() WHERE paypal_subscription_id = '${subId}';`;\n    message = `Subscription cancelled: ${subId}`;\n    break;\n  }\n  \n  case 'BILLING.SUBSCRIPTION.SUSPENDED': {\n    const subId = resource.id || '';\n    sql = `UPDATE subscriptions SET status = 'suspended', updated_at = NOW() WHERE paypal_subscription_id = '${subId}';`;\n    message = `Subscription suspended: ${subId}`;\n    break;\n  }\n  \n  case 'PAYMENT.SALE.COMPLETED': {\n    const billingAgreementId = resource.billing_agreement_id || '';\n    if (billingAgreementId) {\n      sql = `\n        UPDATE subscriptions SET \n          status = 'active',\n          current_period_end = NOW() + INTERVAL '1 month',\n          updated_at = NOW()\n        WHERE paypal_subscription_id = '${billingAgreementId}';\n      `;\n      message = `Payment received for subscription: ${billingAgreementId}`;\n    }\n    break;\n  }\n  \n  default:\n    message = `Unhandled event type: ${eventType}`;\n    sql = '';\n}\n\nreturn [{ json: {\n  eventType,\n  sql,\n  message,\n  hasSQL: sql.length > 0,\n  subscriptionId: resource.id || '',\n  verified: !!transmissionId // Basic check; use PayPal API for full verification\n}}];"
+      },
+      "id": "pp-handler",
+      "name": "PayPal Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "has-sql", "leftValue": "={{ $json.hasSQL }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-pp-sql",
+      "name": "IF Has SQL",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "db-pp-update",
+      "name": "DB PayPal Update",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 240],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ received: true, event: $('PayPal Handler').first().json.eventType, message: $('PayPal Handler').first().json.message }) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": { "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }] }
+        }
+      },
+      "id": "resp-pp-ok",
+      "name": "Respond PP OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 240]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ received: true, event: $json.eventType, message: $json.message }) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": { "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }] }
+        }
+      },
+      "id": "resp-pp-noop",
+      "name": "Respond PP NoOp",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 400]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "PayPal Webhook": { "main": [[{ "node": "PayPal Handler", "type": "main", "index": 0 }]] },
+    "PayPal Handler": { "main": [[{ "node": "IF Has SQL", "type": "main", "index": 0 }]] },
+    "IF Has SQL": { "main": [[{ "node": "DB PayPal Update", "type": "main", "index": 0 }], [{ "node": "Respond PP NoOp", "type": "main", "index": 0 }]] },
+    "DB PayPal Update": { "main": [[{ "node": "Respond PP OK", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "paypal-v1-001",
+  "meta": { "templateCredsSetupCompleted": false },
+  "id": "ft-paypal-webhook",
+  "tags": [{ "name": "finance-tracker" }, { "name": "paypal" }, { "name": "webhooks" }]
+}

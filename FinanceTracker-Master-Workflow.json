@@ -1,0 +1,1397 @@
+{
+  "name": "FinanceTracker — Master Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "finance/auth/register",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "wh-register",
+      "name": "Webhook Register",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 200],
+      "webhookId": "ft-register-001"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "finance/auth/login",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "wh-login",
+      "name": "Webhook Login",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 400],
+      "webhookId": "ft-login-001"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "finance/api/message",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "wh-message",
+      "name": "Webhook Message",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 600],
+      "webhookId": "ft-message-001"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "finance/api/ocr",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "wh-ocr",
+      "name": "Webhook OCR Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 800],
+      "webhookId": "ft-ocr-001"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "finance/api/accounts",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-accounts",
+      "name": "Webhook Get Accounts",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 1000],
+      "webhookId": "ft-accounts-001"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "finance/api/transactions",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-transactions",
+      "name": "Webhook Get Transactions",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 1200],
+      "webhookId": "ft-transactions-001"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "finance/api/summary",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-summary",
+      "name": "Webhook Get Summary",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 1400],
+      "webhookId": "ft-summary-001"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "finance/api/subscription",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-subscription",
+      "name": "Webhook Get Subscription",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 1600],
+      "webhookId": "ft-sub-001"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "finance/api/edit-transaction",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "wh-edit-tx",
+      "name": "Webhook Edit Transaction",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 1800],
+      "webhookId": "ft-edit-tx-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// REGISTER USER\n// ============================================================\nconst body = JSON.parse($input.first().json.body || '{}');\nconst { email, password, first_name, last_name } = body;\n\nif (!email || !password || !first_name) {\n  return [{ json: { success: false, error: 'email, password, and first_name are required' } }];\n}\n\nif (password.length < 8) {\n  return [{ json: { success: false, error: 'Password must be at least 8 characters' } }];\n}\n\nconst emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nif (!emailRegex.test(email)) {\n  return [{ json: { success: false, error: 'Invalid email format' } }];\n}\n\n// Hash password using Node.js crypto (bcrypt-like with pbkdf2)\nconst crypto = require('crypto');\nconst salt = crypto.randomBytes(16).toString('hex');\nconst hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');\nconst passwordHash = `pbkdf2:sha512:100000$${salt}$${hash}`;\n\nreturn [{ json: {\n  success: true,\n  email: email.toLowerCase().trim(),\n  password_hash: passwordHash,\n  first_name: first_name.trim(),\n  last_name: (last_name || '').trim()\n}}];"
+      },
+      "id": "register-validate",
+      "name": "Validate Registration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "reg-ok", "leftValue": "={{ $json.success }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-reg-valid",
+      "name": "IF Reg Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO users (email, password_hash, first_name, last_name)\nVALUES ('{{ $json.email }}', '{{ $json.password_hash }}', '{{ $json.first_name }}', '{{ $json.last_name }}')\nRETURNING id, email, first_name, last_name, currency, created_at;",
+        "options": {}
+      },
+      "id": "db-insert-user",
+      "name": "DB Insert User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 120],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate JWT for newly registered user\nconst crypto = require('crypto');\nconst input = $input.first().json;\n\n// Check for DB error (duplicate email)\nif (input.error || !input.id) {\n  return [{ json: { success: false, error: 'Email already registered or database error' } }];\n}\n\nconst JWT_SECRET = $env.JWT_SECRET || 'your-jwt-secret-change-me';\n\nfunction base64url(str) {\n  return Buffer.from(str).toString('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');\n}\n\nfunction createJWT(payload, secret) {\n  const header = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));\n  const body = base64url(JSON.stringify(payload));\n  const signature = crypto.createHmac('sha256', secret).update(`${header}.${body}`).digest('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');\n  return `${header}.${body}.${signature}`;\n}\n\nconst token = createJWT({\n  user_id: input.id,\n  email: input.email,\n  first_name: input.first_name,\n  iat: Math.floor(Date.now() / 1000),\n  exp: Math.floor(Date.now() / 1000) + (7 * 24 * 3600) // 7 days\n}, JWT_SECRET);\n\nreturn [{ json: {\n  success: true,\n  token,\n  user: {\n    id: input.id,\n    email: input.email,\n    first_name: input.first_name,\n    last_name: input.last_name,\n    currency: input.currency\n  }\n}}];"
+      },
+      "id": "register-jwt",
+      "name": "Generate Register JWT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 120]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }, { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }]
+          }
+        }
+      },
+      "id": "resp-register-ok",
+      "name": "Respond Register OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 120]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error || 'Validation failed' }) }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-register-err",
+      "name": "Respond Register Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// LOGIN USER\n// ============================================================\nconst body = JSON.parse($input.first().json.body || '{}');\nconst { email, password } = body;\n\nif (!email || !password) {\n  return [{ json: { success: false, error: 'email and password are required' } }];\n}\n\nreturn [{ json: {\n  success: true,\n  email: email.toLowerCase().trim(),\n  password\n}}];"
+      },
+      "id": "login-validate",
+      "name": "Validate Login",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "login-ok", "leftValue": "={{ $json.success }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-login-valid",
+      "name": "IF Login Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, email, password_hash, first_name, last_name, currency FROM users WHERE email = '{{ $json.email }}' AND is_active = TRUE LIMIT 1;",
+        "options": {}
+      },
+      "id": "db-get-user",
+      "name": "DB Get User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 340],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verify password and generate JWT\nconst crypto = require('crypto');\nconst users = $input.all().map(i => i.json);\nconst loginData = $('Validate Login').first().json;\n\nif (!users.length || !users[0].id) {\n  return [{ json: { success: false, error: 'Invalid email or password' } }];\n}\n\nconst user = users[0];\nconst storedHash = user.password_hash;\n\n// Parse stored hash: pbkdf2:sha512:100000$salt$hash\nconst parts = storedHash.split('$');\nif (parts.length < 3) {\n  return [{ json: { success: false, error: 'Invalid stored credentials' } }];\n}\n\nconst salt = parts[1];\nconst expectedHash = parts[2];\nconst computedHash = crypto.pbkdf2Sync(loginData.password, salt, 100000, 64, 'sha512').toString('hex');\n\nif (computedHash !== expectedHash) {\n  return [{ json: { success: false, error: 'Invalid email or password' } }];\n}\n\nconst JWT_SECRET = $env.JWT_SECRET || 'your-jwt-secret-change-me';\n\nfunction base64url(str) {\n  return Buffer.from(str).toString('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');\n}\n\nfunction createJWT(payload, secret) {\n  const header = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));\n  const body = base64url(JSON.stringify(payload));\n  const signature = crypto.createHmac('sha256', secret).update(`${header}.${body}`).digest('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');\n  return `${header}.${body}.${signature}`;\n}\n\nconst token = createJWT({\n  user_id: user.id,\n  email: user.email,\n  first_name: user.first_name,\n  iat: Math.floor(Date.now() / 1000),\n  exp: Math.floor(Date.now() / 1000) + (7 * 24 * 3600)\n}, JWT_SECRET);\n\nreturn [{ json: {\n  success: true,\n  token,\n  user: {\n    id: user.id,\n    email: user.email,\n    first_name: user.first_name,\n    last_name: user.last_name,\n    currency: user.currency\n  }\n}}];"
+      },
+      "id": "login-verify",
+      "name": "Verify Password & JWT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 340]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "login-success", "leftValue": "={{ $json.success }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-login-success",
+      "name": "IF Login Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1440, 340]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }, { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }]
+          }
+        }
+      },
+      "id": "resp-login-ok",
+      "name": "Respond Login OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1680, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error || 'Login failed' }) }}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-login-err",
+      "name": "Respond Login Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1680, 440]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// AUTH MIDDLEWARE — verify JWT, extract user, check subscription\n// ============================================================\nconst crypto = require('crypto');\nconst input = $input.first().json;\nconst headers = input.headers || {};\nconst authHeader = headers.authorization || headers.Authorization || '';\nconst token = authHeader.replace('Bearer ', '').trim();\n\nconst JWT_SECRET = $env.JWT_SECRET || 'your-jwt-secret-change-me';\n\nfunction base64urlDecode(str) {\n  str = str.replace(/-/g, '+').replace(/_/g, '/');\n  while (str.length % 4) str += '=';\n  return Buffer.from(str, 'base64').toString();\n}\n\nfunction verifyJWT(token, secret) {\n  try {\n    const parts = token.split('.');\n    if (parts.length !== 3) return null;\n    const header = JSON.parse(base64urlDecode(parts[0]));\n    const payload = JSON.parse(base64urlDecode(parts[1]));\n    const signatureCheck = crypto.createHmac('sha256', secret)\n      .update(`${parts[0]}.${parts[1]}`)\n      .digest('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');\n    if (signatureCheck !== parts[2]) return null;\n    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;\n    return payload;\n  } catch (e) { return null; }\n}\n\nif (!token) {\n  return [{ json: { authenticated: false, error: 'No authorization token provided' } }];\n}\n\nconst payload = verifyJWT(token, JWT_SECRET);\nif (!payload) {\n  return [{ json: { authenticated: false, error: 'Invalid or expired token' } }];\n}\n\n// Parse message body\nlet body = {};\ntry {\n  body = typeof input.body === 'string' ? JSON.parse(input.body) : (input.body || {});\n} catch(e) { body = {}; }\n\nreturn [{ json: {\n  authenticated: true,\n  user_id: payload.user_id,\n  email: payload.email,\n  first_name: payload.first_name,\n  message: body.message || '',\n  rawBody: body\n}}];"
+      },
+      "id": "auth-middleware",
+      "name": "Auth Middleware",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 600]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "auth-ok", "leftValue": "={{ $json.authenticated }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-auth-ok",
+      "name": "IF Authenticated",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error || 'Authentication required' }) }}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-auth-err",
+      "name": "Respond Auth Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 700]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT s.plan_name, s.status, s.current_period_end,\n  (SELECT COUNT(*) FROM usage_logs WHERE user_id = '{{ $json.user_id }}' AND action_type = 'transaction' AND billing_period = TO_CHAR(NOW(), 'YYYY-MM')) AS tx_count,\n  (SELECT COUNT(*) FROM usage_logs WHERE user_id = '{{ $json.user_id }}' AND action_type = 'ocr_upload' AND billing_period = TO_CHAR(NOW(), 'YYYY-MM')) AS ocr_count\nFROM subscriptions s\nWHERE s.user_id = '{{ $json.user_id }}'\nORDER BY s.created_at DESC LIMIT 1;",
+        "options": {}
+      },
+      "id": "db-check-sub",
+      "name": "DB Check Subscription",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 540],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// SUBSCRIPTION GATE + INTENT ROUTER\n// ============================================================\nconst authData = $('Auth Middleware').first().json;\nconst subData = $input.all().map(i => i.json);\nconst sub = subData[0] || { plan_name: 'free', status: 'active', tx_count: 0, ocr_count: 0 };\n\nconst plan = sub.plan_name || 'free';\nconst status = sub.status || 'active';\nconst txCount = parseInt(sub.tx_count) || 0;\nconst ocrCount = parseInt(sub.ocr_count) || 0;\nconst isPro = plan !== 'free' && status === 'active';\n\n// Free tier limits\nconst FREE_TX_LIMIT = 100;\nconst FREE_OCR_LIMIT = 3;\n\nconst message = (authData.message || '').trim();\nif (!message) {\n  return [{ json: { route: 'error', error: 'No message provided', user_id: authData.user_id } }];\n}\n\n// Detect intent\nconst lowerMsg = message.toLowerCase();\n\n// Query patterns\nconst queryPatterns = [\n  /^(how much|what did|what's|whats|show me|tell me|give me|summary|report|insight|total|spent|earned|saved|budget|compare|trend|balance|overview|net worth)/i,\n  /^(this week|this month|last week|last month|today|yesterday)/i,\n  /\\?\\s*$/,\n  /^(help|hi|hello|hey|status)$/i\n];\n\n// Edit patterns\nconst editPatterns = [\n  /^(change|update|modify|edit|fix|correct|delete|remove|that .* was)/i,\n  /not (\\d|\\$)/i,\n  /was actually/i,\n  /should be/i,\n  /wrong amount/i\n];\n\n// Account patterns\nconst accountPatterns = [\n  /^i have .* in/i,\n  /my .* (account|balance)/i,\n  /^(set|create|add) .* account/i,\n  /transferred? .* from .* to/i\n];\n\nlet route = 'transaction';\nif (queryPatterns.some(p => p.test(lowerMsg))) route = 'query';\nelse if (editPatterns.some(p => p.test(lowerMsg))) route = 'edit';\nelse if (accountPatterns.some(p => p.test(lowerMsg))) route = 'account';\n\n// Check free tier limits for transactions\nif (route === 'transaction' && !isPro && txCount >= FREE_TX_LIMIT) {\n  return [{ json: {\n    route: 'upgrade_required',\n    error: `You've reached your free tier limit of ${FREE_TX_LIMIT} transactions this month. Upgrade to Pro for unlimited transactions.`,\n    user_id: authData.user_id,\n    plan, isPro\n  }}];\n}\n\n// Normalize amount shorthands\nlet normalizedText = message;\nnormalizedText = normalizedText.replace(/(\\d+\\.?\\d*)\\s*k\\b/gi, (m, num) => String(parseFloat(num) * 1000));\nnormalizedText = normalizedText.replace(/[₹$€£J\\$]/g, '');\n\nreturn [{ json: {\n  route,\n  message,\n  normalizedText,\n  user_id: authData.user_id,\n  email: authData.email,\n  first_name: authData.first_name,\n  plan, isPro, status,\n  tx_count: txCount,\n  ocr_count: ocrCount,\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "intent-router",
+      "name": "Intent Router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 540]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "outputIndex": 0, "conditions": { "conditions": [{ "leftValue": "={{ $json.route }}", "rightValue": "transaction", "operator": { "type": "string", "operation": "equals" } }] } },
+            { "outputIndex": 1, "conditions": { "conditions": [{ "leftValue": "={{ $json.route }}", "rightValue": "query", "operator": { "type": "string", "operation": "equals" } }] } },
+            { "outputIndex": 2, "conditions": { "conditions": [{ "leftValue": "={{ $json.route }}", "rightValue": "edit", "operator": { "type": "string", "operation": "equals" } }] } },
+            { "outputIndex": 3, "conditions": { "conditions": [{ "leftValue": "={{ $json.route }}", "rightValue": "account", "operator": { "type": "string", "operation": "equals" } }] } },
+            { "outputIndex": 4, "conditions": { "conditions": [{ "leftValue": "={{ $json.route }}", "rightValue": "upgrade_required", "operator": { "type": "string", "operation": "equals" } }] } },
+            { "outputIndex": 5, "conditions": { "conditions": [{ "leftValue": "={{ $json.route }}", "rightValue": "error", "operator": { "type": "string", "operation": "equals" } }] } }
+          ]
+        },
+        "options": { "fallbackOutput": "extra" }
+      },
+      "id": "switch-route",
+      "name": "Route Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [1440, 540]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"arcee-ai/trinity-large-preview:free\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a precise financial transaction parser. Extract ALL transactions from this message. A message may contain MULTIPLE transactions.\\n\\nMessage: \\\"{{ $json.normalizedText }}\\\"\\n\\nExtract and return a JSON object with a \\\"transactions\\\" array. Each element must have:\\n- item: string (what was purchased/received)\\n- amount: number (monetary amount, always positive, 0 if not found)\\n- direction: string (inflow or outflow)\\n- category: string (one of: Food & Dining, Shopping, Transportation, Entertainment, Utilities, Health, Education, Income, Transfer, Subscriptions, Travel, Miscellaneous)\\n- subcategory: string (specific label)\\n- account: string (bank/wallet name mentioned, or 'cash' if none)\\n- payment_method: string (cash, upi, credit_card, debit_card, bank_transfer, wallet, unknown)\\n- notes: string (extra context or null)\\n- edit_intent: boolean (false)\\n- correction_target: null\\n- account_creation_intent: boolean (false)\\n- balance_update_intent: boolean (false)\\n- confidence: number (0.0-1.0)\\n\\nRules:\\n1. salary/freelance/refund/received/credited = inflow\\n2. paid/bought/spent/ordered/sent = outflow\\n3. MUST return {\\\"transactions\\\": [...]} array format\\n4. Each transaction gets its own entry\\n5. Default payment_method to unknown if not mentioned\\n6. Default account to cash if not mentioned\\n7. If amount is 0, confidence below 0.4\\n\\nRespond ONLY with valid JSON. No markdown. No explanation.\"\n    }\n  ],\n  \"temperature\": 0.1,\n  \"top_p\": 0.8,\n  \"max_tokens\": 1024,\n  \"response_format\": { \"type\": \"json_object\" }\n}",
+        "options": {}
+      },
+      "id": "llm-extract-tx",
+      "name": "LLM Extract Transactions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1740, 340],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "CONFIGURE_BEARER_AUTH_ID",
+          "name": "OpenRouter Bearer Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// PARSE MULTI-TRANSACTION LLM RESPONSE\n// ============================================================\nconst response = $input.first().json;\nconst routeData = $('Intent Router').first().json;\n\ntry {\n  let text = response.choices?.[0]?.message?.content || '{}';\n  text = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  const parsed = JSON.parse(text);\n  \n  // Handle both array and single object responses\n  let txArray = [];\n  if (Array.isArray(parsed.transactions)) {\n    txArray = parsed.transactions;\n  } else if (Array.isArray(parsed)) {\n    txArray = parsed;\n  } else if (parsed.item) {\n    txArray = [parsed];\n  } else {\n    // Try to find any array in the response\n    for (const key of Object.keys(parsed)) {\n      if (Array.isArray(parsed[key])) { txArray = parsed[key]; break; }\n    }\n  }\n  \n  if (txArray.length === 0) {\n    return [{ json: { success: false, error: 'Could not extract any transactions', user_id: routeData.user_id } }];\n  }\n  \n  // Process each transaction\n  const processed = txArray.map((tx, idx) => {\n    const txId = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 6)}_${idx}`;\n    const amount = Number(tx.amount) || 0;\n    const confidence = Number(tx.confidence) || (amount > 0 ? 0.8 : 0.3);\n    const valid = amount > 0 && confidence >= 0.4 && tx.item && tx.item !== 'Unknown';\n    \n    // Classify type\n    let txType = 'daily';\n    if (tx.direction === 'inflow') txType = 'income';\n    else if (tx.recipient) txType = 'expense';\n    \n    const txDate = new Date(routeData.timestamp);\n    const weekNum = getWeekNumber(txDate);\n    \n    return {\n      id: txId,\n      user_id: routeData.user_id,\n      item: tx.item || 'Unknown',\n      amount,\n      currency: 'JMD',\n      category: tx.category || 'Miscellaneous',\n      subcategory: tx.subcategory || '',\n      account_name: tx.account || 'cash',\n      payment_method: tx.payment_method || 'unknown',\n      direction: tx.direction || 'outflow',\n      recipient: tx.recipient || null,\n      notes: tx.notes || null,\n      confidence,\n      transaction_type: txType,\n      week_number: weekNum,\n      month: routeData.timestamp.substring(0, 7),\n      valid,\n      raw_message: routeData.message\n    };\n  });\n  \n  function getWeekNumber(date) {\n    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));\n    const dayNum = d.getUTCDay() || 7;\n    d.setUTCDate(d.getUTCDate() + 4 - dayNum);\n    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));\n    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);\n  }\n  \n  const validTxns = processed.filter(t => t.valid);\n  const invalidTxns = processed.filter(t => !t.valid);\n  \n  return [{ json: {\n    success: validTxns.length > 0,\n    transactions: validTxns,\n    invalid: invalidTxns,\n    total_parsed: processed.length,\n    valid_count: validTxns.length,\n    user_id: routeData.user_id,\n    first_name: routeData.first_name\n  }}];\n} catch (error) {\n  return [{ json: {\n    success: false,\n    error: `Parse error: ${error.message}`,\n    user_id: routeData.user_id\n  }}];\n}"
+      },
+      "id": "parse-multi-tx",
+      "name": "Parse Multi Transactions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 340]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "tx-ok", "leftValue": "={{ $json.success }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-tx-valid",
+      "name": "IF Transactions Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2220, 340]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// SAVE ALL VALID TRANSACTIONS + UPDATE ACCOUNTS\n// ============================================================\nconst data = $input.first().json;\nconst txns = data.transactions;\n\nif (!txns || txns.length === 0) {\n  return [{ json: { success: false, error: 'No transactions to save' } }];\n}\n\n// Build SQL for batch insert\nconst values = txns.map(tx => {\n  const item = (tx.item || '').replace(/'/g, \"''\");\n  const notes = tx.notes ? `'${(tx.notes).replace(/'/g, \"''\")}'` : 'NULL';\n  const recipient = tx.recipient ? `'${(tx.recipient).replace(/'/g, \"''\")}'` : 'NULL';\n  const rawMsg = (tx.raw_message || '').replace(/'/g, \"''\");\n  const subcat = (tx.subcategory || '').replace(/'/g, \"''\");\n  \n  return `('${tx.user_id}', '${rawMsg}', '${item}', ${tx.amount}, '${tx.currency}', '${tx.category}', '${subcat}', '${tx.payment_method}', '${tx.direction}', ${recipient}, ${notes}, ${tx.confidence}, '${tx.transaction_type}', ${tx.week_number}, '${tx.month}')`;\n}).join(',\\n');\n\nconst insertSQL = `INSERT INTO transactions (user_id, raw_message, item, amount, currency, category, subcategory, payment_method, direction, recipient, notes, confidence, transaction_type, week_number, month)\nVALUES ${values}\nRETURNING id, item, amount, direction, category;`;\n\n// Build account update SQLs\nconst accountUpdates = txns.map(tx => {\n  const accName = (tx.account_name || 'cash').replace(/'/g, \"''\");\n  const sign = tx.direction === 'inflow' ? '+' : '-';\n  return `\n-- Ensure account exists\nINSERT INTO accounts (user_id, name, account_type)\nVALUES ('${tx.user_id}', '${accName}', CASE WHEN LOWER('${accName}') = 'cash' THEN 'cash' ELSE 'bank' END)\nON CONFLICT (user_id, LOWER(name)) DO NOTHING;\n\n-- Update balance\nUPDATE accounts SET balance = balance ${sign} ${tx.amount}\nWHERE user_id = '${tx.user_id}' AND LOWER(name) = LOWER('${accName}');`;\n}).join('\\n');\n\n// Log usage\nconst usageSQL = txns.map(tx => \n  `INSERT INTO usage_logs (user_id, action_type, billing_period) VALUES ('${tx.user_id}', 'transaction', TO_CHAR(NOW(), 'YYYY-MM'));`\n).join('\\n');\n\nreturn [{ json: {\n  insertSQL,\n  accountUpdates,\n  usageSQL,\n  transactions: txns,\n  user_id: data.user_id,\n  first_name: data.first_name,\n  count: txns.length\n}}];"
+      },
+      "id": "prepare-save-tx",
+      "name": "Prepare Save Transactions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2460, 260]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.insertSQL }}",
+        "options": {}
+      },
+      "id": "db-save-tx",
+      "name": "DB Save Transactions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2700, 180],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('Prepare Save Transactions').first().json.accountUpdates }}\n{{ $('Prepare Save Transactions').first().json.usageSQL }}",
+        "options": {}
+      },
+      "id": "db-update-accounts",
+      "name": "DB Update Accounts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2700, 340],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// BUILD TRANSACTION CONFIRMATION RESPONSE\n// ============================================================\nconst saveData = $('Prepare Save Transactions').first().json;\nconst txns = saveData.transactions;\n\nfunction formatJMD(amount) {\n  return 'J$' + Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2 });\n}\n\nlet messages = [];\ntxns.forEach(tx => {\n  const emoji = tx.direction === 'inflow' ? '💵' : '💸';\n  messages.push(`${emoji} ${tx.item}: ${formatJMD(tx.amount)} (${tx.category})`);\n});\n\nconst summary = txns.length > 1 \n  ? `Logged ${txns.length} transactions:\\n${messages.join('\\n')}` \n  : messages[0];\n\nreturn [{ json: {\n  success: true,\n  message: summary,\n  transactions: txns.map(t => ({\n    id: t.id,\n    item: t.item,\n    amount: t.amount,\n    direction: t.direction,\n    category: t.category,\n    account: t.account_name\n  })),\n  count: txns.length\n}}];"
+      },
+      "id": "build-tx-confirm",
+      "name": "Build TX Confirmation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2940, 260]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-tx-ok",
+      "name": "Respond TX OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3180, 260]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error || 'Could not parse transaction', suggestions: ['Try: bought groceries 2500', 'Try: received salary 120k'] }) }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-tx-err",
+      "name": "Respond TX Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2460, 420]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// QUERY ENGINE — Classify and aggregate\n// ============================================================\nconst data = $input.first().json;\nconst query = data.message.toLowerCase();\nconst userId = data.user_id;\n\nlet timeframe = 'this_week', timeLabel = 'this week';\nconst now = new Date();\nlet startDate, endDate;\n\nif (query.includes('today')) {\n  timeframe = 'today'; timeLabel = 'today';\n  startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());\n  endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);\n} else if (query.includes('yesterday')) {\n  timeframe = 'yesterday'; timeLabel = 'yesterday';\n  startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);\n  endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);\n} else if (query.includes('last week')) {\n  timeframe = 'last_week'; timeLabel = 'last week';\n  const dow = now.getDay(); const db = dow === 0 ? 6 : dow - 1;\n  startDate = new Date(now); startDate.setDate(now.getDate() - db - 7); startDate.setHours(0,0,0,0);\n  endDate = new Date(startDate); endDate.setDate(startDate.getDate() + 6); endDate.setHours(23,59,59,999);\n} else if (query.includes('this month') || query.includes('monthly')) {\n  timeframe = 'this_month'; timeLabel = 'this month';\n  startDate = new Date(now.getFullYear(), now.getMonth(), 1);\n  endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);\n} else if (query.includes('last month')) {\n  timeframe = 'last_month'; timeLabel = 'last month';\n  startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);\n  endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);\n} else {\n  const dow = now.getDay(); const db = dow === 0 ? 6 : dow - 1;\n  startDate = new Date(now); startDate.setDate(now.getDate() - db); startDate.setHours(0,0,0,0);\n  endDate = now;\n}\n\nlet queryType = 'general';\nif (query.match(/how much|total|spent|spending/)) queryType = 'spending_summary';\nelse if (query.match(/category|breakdown|where.*money/)) queryType = 'category_breakdown';\nelse if (query.match(/balance|account/)) queryType = 'account_balance';\nelse if (query.match(/budget|limit|goal/)) queryType = 'budget';\nelse if (query.match(/income|earned|salary|received/)) queryType = 'income_summary';\nelse if (query.match(/net worth|worth/)) queryType = 'net_worth';\nelse if (query.match(/savings|saved|saving rate/)) queryType = 'savings';\nelse if (query.match(/insight|advice|tip|suggest/)) queryType = 'insights';\nelse if (query.match(/help|what can|commands/)) queryType = 'help';\n\nconst sql = `\nSELECT \n  COALESCE(SUM(CASE WHEN direction='inflow' THEN amount ELSE 0 END),0) as total_income,\n  COALESCE(SUM(CASE WHEN direction='outflow' THEN amount ELSE 0 END),0) as total_expense,\n  COUNT(*) as tx_count\nFROM transactions\nWHERE user_id='${userId}' AND is_deleted=FALSE\n  AND created_at >= '${startDate.toISOString()}'\n  AND created_at <= '${endDate.toISOString()}';\n`;\n\nconst categorySql = `\nSELECT category, SUM(amount) as total, COUNT(*) as cnt\nFROM transactions\nWHERE user_id='${userId}' AND is_deleted=FALSE AND direction='outflow'\n  AND created_at >= '${startDate.toISOString()}'\n  AND created_at <= '${endDate.toISOString()}'\nGROUP BY category ORDER BY total DESC;\n`;\n\nconst topExpensesSql = `\nSELECT item, amount, category, created_at\nFROM transactions\nWHERE user_id='${userId}' AND is_deleted=FALSE AND direction='outflow'\n  AND created_at >= '${startDate.toISOString()}'\n  AND created_at <= '${endDate.toISOString()}'\nORDER BY amount DESC LIMIT 5;\n`;\n\nreturn [{ json: {\n  queryType, timeframe, timeLabel,\n  startDate: startDate.toISOString(),\n  endDate: endDate.toISOString(),\n  originalQuery: data.message,\n  user_id: userId,\n  first_name: data.first_name,\n  isPro: data.isPro,\n  sql, categorySql, topExpensesSql\n}}];"
+      },
+      "id": "classify-query",
+      "name": "Classify Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 540]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}\n{{ $json.categorySql }}\n{{ $json.topExpensesSql }}",
+        "options": {}
+      },
+      "id": "db-query-data",
+      "name": "DB Query Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1980, 540],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// FORMAT QUERY RESPONSE (minimize LLM usage)\n// ============================================================\nconst qi = $('Classify Query').first().json;\nconst results = $input.all().map(i => i.json);\n\nfunction formatJMD(n) { return 'J$' + Number(n).toLocaleString('en-US', {minimumFractionDigits: 2}); }\n\n// Parse aggregate results\nconst agg = results[0] || { total_income: 0, total_expense: 0, tx_count: 0 };\nconst totalIncome = Number(agg.total_income) || 0;\nconst totalExpense = Number(agg.total_expense) || 0;\nconst netSavings = totalIncome - totalExpense;\nconst savingsRate = totalIncome > 0 ? Math.round((1 - totalExpense / totalIncome) * 100) : 0;\nconst txCount = Number(agg.tx_count) || 0;\n\n// Category breakdown from results\nconst categories = results.filter(r => r.category && r.total).map(r => ({\n  category: r.category, total: Number(r.total), count: Number(r.cnt)\n}));\n\n// Top expenses\nconst topExpenses = results.filter(r => r.item && r.amount && !r.total_income).map(r => ({\n  item: r.item, amount: Number(r.amount), category: r.category\n}));\n\nlet response = '';\n\nif (qi.queryType === 'help') {\n  response = `Hi ${qi.first_name}! Here's what I can do:\\n\\n` +\n    `Log transactions: \"Bought groceries 2500\", \"Received salary 120k\"\\n` +\n    `Multiple at once: \"Lunch 500, uber 300, coffee 150\"\\n` +\n    `Ask questions: \"How much did I spend this week?\", \"Category breakdown\"\\n` +\n    `Edit: \"Change the grocery transaction to 3000\", \"Delete the uber from yesterday\"\\n` +\n    `Accounts: \"I have 30k in NCB\", \"Paid 2000 from NCB\"\\n` +\n    `Reports: \"Weekly summary\", \"Monthly report\", \"Net worth\"\\n\\n` +\n    `Upload receipts/screenshots for OCR parsing!`;\n} else if (qi.queryType === 'account_balance') {\n  response = `checking_accounts`; // Will be handled by separate query\n} else {\n  // Build summary without LLM\n  response = `${qi.first_name}'s ${qi.timeLabel} Summary:\\n\\n`;\n  response += `Income: ${formatJMD(totalIncome)}\\n`;\n  response += `Expenses: ${formatJMD(totalExpense)}\\n`;\n  response += `Net: ${formatJMD(netSavings)}\\n`;\n  response += `Savings Rate: ${savingsRate}%\\n`;\n  response += `Transactions: ${txCount}\\n`;\n  \n  if (categories.length > 0) {\n    response += `\\nTop Categories:\\n`;\n    categories.slice(0, 5).forEach(c => {\n      const pct = totalExpense > 0 ? Math.round(c.total / totalExpense * 100) : 0;\n      response += `  ${c.category}: ${formatJMD(c.total)} (${pct}%)\\n`;\n    });\n  }\n  \n  if (topExpenses.length > 0) {\n    response += `\\nLargest Expenses:\\n`;\n    topExpenses.slice(0, 3).forEach(e => {\n      response += `  ${e.item}: ${formatJMD(e.amount)}\\n`;\n    });\n  }\n  \n  if (netSavings > 0) response += `\\nGreat job saving ${formatJMD(netSavings)} ${qi.timeLabel}!`;\n  else if (netSavings < 0) response += `\\nYou spent ${formatJMD(Math.abs(netSavings))} more than you earned ${qi.timeLabel}. Consider reviewing your spending.`;\n}\n\n// Log query usage\nconst usageSQL = `INSERT INTO usage_logs (user_id, action_type, billing_period) VALUES ('${qi.user_id}', 'query', TO_CHAR(NOW(), 'YYYY-MM'));`;\n\nreturn [{ json: {\n  success: true,\n  message: response,\n  data: {\n    total_income: totalIncome,\n    total_expense: totalExpense,\n    net_savings: netSavings,\n    savings_rate: savingsRate,\n    transaction_count: txCount,\n    categories,\n    top_expenses: topExpenses,\n    period: qi.timeLabel\n  },\n  usageSQL\n}}];"
+      },
+      "id": "format-query-response",
+      "name": "Format Query Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 540]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-query-ok",
+      "name": "Respond Query OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2460, 540]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// TRANSACTION EDIT ENGINE\n// ============================================================\nconst data = $input.first().json;\nconst msg = data.message.toLowerCase();\nconst userId = data.user_id;\n\n// Detect edit type\nlet editType = 'update';\nif (msg.match(/delete|remove|cancel/)) editType = 'delete';\n\n// Extract search terms\nlet searchTerm = '';\nlet newAmount = null;\n\n// \"change X to Y\" or \"X was Y not Z\"\nconst changeMatch = msg.match(/(?:change|update|modify|fix|correct)\\s+(?:the\\s+)?(.+?)\\s+(?:to|=)\\s+(\\d[\\d,.]*)/);\nconst wasMatch = msg.match(/(.+?)\\s+was\\s+(?:actually\\s+)?(\\d[\\d,.]*)/);\nconst notMatch = msg.match(/(.+?)\\s+(?:was|is)\\s+(\\d[\\d,.]*)\\s+not\\s+(\\d[\\d,.]*)/);\nconst deleteMatch = msg.match(/(?:delete|remove|cancel)\\s+(?:the\\s+)?(.+?)(?:\\s+from\\s+.+)?$/);\n\nif (notMatch) {\n  searchTerm = notMatch[1].trim();\n  newAmount = parseFloat(notMatch[2].replace(/,/g, ''));\n} else if (changeMatch) {\n  searchTerm = changeMatch[1].trim();\n  newAmount = parseFloat(changeMatch[2].replace(/,/g, ''));\n} else if (wasMatch) {\n  searchTerm = wasMatch[1].trim();\n  newAmount = parseFloat(wasMatch[2].replace(/,/g, ''));\n} else if (deleteMatch) {\n  searchTerm = deleteMatch[1].trim();\n}\n\n// Clean search term\nsearchTerm = searchTerm.replace(/^(the|my|that|this)\\s+/i, '').trim();\n\nconst searchSQL = `SELECT id, item, amount, category, direction, created_at \nFROM transactions \nWHERE user_id = '${userId}' AND is_deleted = FALSE \n  AND (LOWER(item) LIKE '%${searchTerm.replace(/'/g, \"''\")}%' OR LOWER(category) LIKE '%${searchTerm.replace(/'/g, \"''\")}%')\nORDER BY created_at DESC LIMIT 5;`;\n\nreturn [{ json: {\n  editType,\n  searchTerm,\n  newAmount,\n  searchSQL,\n  user_id: userId,\n  originalMessage: data.message\n}}];"
+      },
+      "id": "edit-engine",
+      "name": "Edit Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 740]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.searchSQL }}",
+        "options": {}
+      },
+      "id": "db-search-edit",
+      "name": "DB Search for Edit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1980, 740],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// EXECUTE EDIT + CREATE AUDIT TRAIL\n// ============================================================\nconst editData = $('Edit Engine').first().json;\nconst matches = $input.all().map(i => i.json).filter(r => r.id);\n\nif (matches.length === 0) {\n  return [{ json: {\n    success: false,\n    message: `I couldn't find a transaction matching \"${editData.searchTerm}\". Try being more specific.`\n  }}];\n}\n\nconst target = matches[0]; // Best match (most recent)\nlet executeSQL = '';\nlet auditSQL = '';\nlet message = '';\n\nfunction formatJMD(n) { return 'J$' + Number(n).toLocaleString('en-US', {minimumFractionDigits: 2}); }\n\nif (editData.editType === 'delete') {\n  executeSQL = `UPDATE transactions SET is_deleted = TRUE WHERE id = '${target.id}' AND user_id = '${editData.user_id}';`;\n  auditSQL = `INSERT INTO transaction_edits (transaction_id, user_id, edit_type, field_changed, old_value, new_value, edit_reason)\n    VALUES ('${target.id}', '${editData.user_id}', 'delete', 'is_deleted', 'false', 'true', '${editData.originalMessage.replace(/'/g, \"''\")}');`;\n  message = `Deleted: ${target.item} (${formatJMD(target.amount)})`;\n} else {\n  if (editData.newAmount !== null) {\n    executeSQL = `UPDATE transactions SET amount = ${editData.newAmount} WHERE id = '${target.id}' AND user_id = '${editData.user_id}';`;\n    auditSQL = `INSERT INTO transaction_edits (transaction_id, user_id, edit_type, field_changed, old_value, new_value, edit_reason)\n      VALUES ('${target.id}', '${editData.user_id}', 'update', 'amount', '${target.amount}', '${editData.newAmount}', '${editData.originalMessage.replace(/'/g, \"''\")}');`;\n    \n    // Update account balance\n    const diff = editData.newAmount - Number(target.amount);\n    const sign = target.direction === 'inflow' ? '+' : '-';\n    executeSQL += `\\nUPDATE accounts SET balance = balance ${sign} ${Math.abs(diff)} WHERE user_id = '${editData.user_id}' AND is_default = TRUE;`;\n    \n    message = `Updated: ${target.item} from ${formatJMD(target.amount)} to ${formatJMD(editData.newAmount)}`;\n  } else {\n    return [{ json: {\n      success: false,\n      message: `Found \"${target.item}\" (${formatJMD(target.amount)}) but couldn't determine what to change. Try: \"change ${target.item} to [new amount]\"`\n    }}];\n  }\n}\n\nreturn [{ json: {\n  success: true,\n  executeSQL: executeSQL + '\\n' + auditSQL,\n  message,\n  edited_transaction: target\n}}];"
+      },
+      "id": "execute-edit",
+      "name": "Execute Edit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 740]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "edit-ok", "leftValue": "={{ $json.success }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-edit-ok",
+      "name": "IF Edit OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2460, 740]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.executeSQL }}",
+        "options": {}
+      },
+      "id": "db-execute-edit",
+      "name": "DB Execute Edit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2700, 680],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: $('Execute Edit').first().json.message }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-edit-ok",
+      "name": "Respond Edit OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2940, 680]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, message: $json.message }) }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-edit-err",
+      "name": "Respond Edit Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2700, 820]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// ACCOUNT MANAGEMENT ENGINE\n// ============================================================\nconst data = $input.first().json;\nconst msg = data.message;\nconst userId = data.user_id;\n\n// Pattern: \"I have 30k in NCB and 5k cash\"\nconst balanceSetup = msg.match(/(\\d[\\d,.]*k?)\\s+(?:in|at)\\s+([\\w\\s]+)/gi);\n\n// Pattern: \"Transferred 10k from NCB to Scotia\"\nconst transferMatch = msg.match(/transfer(?:red)?\\s+(\\d[\\d,.]*k?)\\s+from\\s+([\\w]+)\\s+to\\s+([\\w]+)/i);\n\nlet sqls = [];\nlet messages = [];\n\nfunction parseAmount(str) {\n  str = str.replace(/,/g, '');\n  if (str.toLowerCase().endsWith('k')) return parseFloat(str) * 1000;\n  return parseFloat(str);\n}\n\nif (transferMatch) {\n  const amount = parseAmount(transferMatch[1]);\n  const fromAcc = transferMatch[2].trim();\n  const toAcc = transferMatch[3].trim();\n  \n  sqls.push(`INSERT INTO accounts (user_id, name, account_type) VALUES ('${userId}', '${fromAcc}', 'bank') ON CONFLICT (user_id, LOWER(name)) DO NOTHING;`);\n  sqls.push(`INSERT INTO accounts (user_id, name, account_type) VALUES ('${userId}', '${toAcc}', 'bank') ON CONFLICT (user_id, LOWER(name)) DO NOTHING;`);\n  sqls.push(`UPDATE accounts SET balance = balance - ${amount} WHERE user_id = '${userId}' AND LOWER(name) = LOWER('${fromAcc}');`);\n  sqls.push(`UPDATE accounts SET balance = balance + ${amount} WHERE user_id = '${userId}' AND LOWER(name) = LOWER('${toAcc}');`);\n  sqls.push(`INSERT INTO transactions (user_id, item, amount, currency, category, direction, transaction_type, notes, month, week_number)\n    VALUES ('${userId}', 'Transfer ${fromAcc} to ${toAcc}', ${amount}, 'JMD', 'Transfer', 'outflow', 'transfer', 'Internal transfer', TO_CHAR(NOW(),'YYYY-MM'), EXTRACT(WEEK FROM NOW())::int);`);\n  messages.push(`Transferred J$${amount.toLocaleString()} from ${fromAcc} to ${toAcc}`);\n} else if (balanceSetup) {\n  balanceSetup.forEach(match => {\n    const parts = match.match(/(\\d[\\d,.]*k?)\\s+(?:in|at)\\s+([\\w\\s]+)/i);\n    if (parts) {\n      const amount = parseAmount(parts[1]);\n      let accName = parts[2].trim();\n      const accType = accName.toLowerCase() === 'cash' ? 'cash' : 'bank';\n      \n      sqls.push(`INSERT INTO accounts (user_id, name, account_type, balance) VALUES ('${userId}', '${accName}', '${accType}', ${amount}) ON CONFLICT (user_id, LOWER(name)) DO UPDATE SET balance = ${amount};`);\n      messages.push(`Set ${accName} balance to J$${amount.toLocaleString()}`);\n    }\n  });\n  \n  // Also check for \"and Xk cash\" pattern\n  const cashMatch = msg.match(/(\\d[\\d,.]*k?)\\s+cash/i);\n  if (cashMatch && !messages.some(m => m.includes('Cash'))) {\n    const amount = parseAmount(cashMatch[1]);\n    sqls.push(`INSERT INTO accounts (user_id, name, account_type, balance) VALUES ('${userId}', 'Cash', 'cash', ${amount}) ON CONFLICT (user_id, LOWER(name)) DO UPDATE SET balance = ${amount};`);\n    messages.push(`Set Cash balance to J$${amount.toLocaleString()}`);\n  }\n} else {\n  // Try create account intent\n  const createMatch = msg.match(/(?:create|add|set up)\\s+(?:a\\s+)?(?:new\\s+)?([\\w\\s]+?)\\s+account/i);\n  if (createMatch) {\n    const accName = createMatch[1].trim();\n    sqls.push(`INSERT INTO accounts (user_id, name, account_type) VALUES ('${userId}', '${accName}', 'bank') ON CONFLICT (user_id, LOWER(name)) DO NOTHING;`);\n    messages.push(`Created account: ${accName}`);\n  }\n}\n\nif (sqls.length === 0) {\n  return [{ json: { success: false, message: 'Could not understand account operation. Try: \"I have 30k in NCB\" or \"Transfer 5k from NCB to Scotia\"' } }];\n}\n\nreturn [{ json: {\n  success: true,\n  sql: sqls.join('\\n'),\n  message: messages.join('\\n'),\n  user_id: userId\n}}];"
+      },
+      "id": "account-engine",
+      "name": "Account Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 940]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "acc-ok", "leftValue": "={{ $json.success }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-account-ok",
+      "name": "IF Account OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1980, 940]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "db-account-op",
+      "name": "DB Account Operation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2220, 880],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: $('Account Engine').first().json.message }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-account-ok",
+      "name": "Respond Account OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2460, 880]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, message: $json.message }) }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-account-err",
+      "name": "Respond Account Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2220, 1020]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error || 'Upgrade to Pro for unlimited access', upgrade_required: true, plan: $json.plan }) }}",
+        "options": {
+          "responseCode": 403,
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-upgrade",
+      "name": "Respond Upgrade Required",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1740, 1140]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error || 'Unknown error' }) }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-general-err",
+      "name": "Respond General Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1740, 1340]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// OCR AUTH MIDDLEWARE\n// ============================================================\nconst crypto = require('crypto');\nconst input = $input.first().json;\nconst headers = input.headers || {};\nconst authHeader = headers.authorization || headers.Authorization || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst JWT_SECRET = $env.JWT_SECRET || 'your-jwt-secret-change-me';\n\nfunction base64urlDecode(str) {\n  str = str.replace(/-/g, '+').replace(/_/g, '/');\n  while (str.length % 4) str += '=';\n  return Buffer.from(str, 'base64').toString();\n}\n\nfunction verifyJWT(token, secret) {\n  try {\n    const parts = token.split('.');\n    if (parts.length !== 3) return null;\n    const payload = JSON.parse(base64urlDecode(parts[1]));\n    const signatureCheck = crypto.createHmac('sha256', secret).update(`${parts[0]}.${parts[1]}`).digest('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');\n    if (signatureCheck !== parts[2]) return null;\n    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;\n    return payload;\n  } catch (e) { return null; }\n}\n\nif (!token) return [{ json: { authenticated: false, error: 'No token' } }];\nconst payload = verifyJWT(token, JWT_SECRET);\nif (!payload) return [{ json: { authenticated: false, error: 'Invalid token' } }];\n\n// Get binary data (image)\nconst binaryData = $input.first().binary;\nlet imageBase64 = '';\nif (binaryData && binaryData.data) {\n  imageBase64 = binaryData.data.data || '';\n}\n\nreturn [{ json: {\n  authenticated: true,\n  user_id: payload.user_id,\n  email: payload.email,\n  first_name: payload.first_name,\n  hasImage: !!imageBase64,\n  imageBase64\n}}];"
+      },
+      "id": "ocr-auth",
+      "name": "OCR Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 800]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "ocr-auth-ok", "leftValue": "={{ $json.authenticated }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-ocr-auth",
+      "name": "IF OCR Auth OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 800]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'OCR: Authentication required' }) }}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-ocr-auth-err",
+      "name": "Respond OCR Auth Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 900]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// OCR — Check subscription limits\n// ============================================================\nconst data = $input.first().json;\nconst userId = data.user_id;\n\nreturn [{ json: {\n  ...data,\n  checkSQL: `SELECT s.plan_name, s.status, (SELECT COUNT(*) FROM usage_logs WHERE user_id = '${userId}' AND action_type = 'ocr_upload' AND billing_period = TO_CHAR(NOW(), 'YYYY-MM')) AS ocr_count FROM subscriptions s WHERE s.user_id = '${userId}' ORDER BY s.created_at DESC LIMIT 1;`\n}}];"
+      },
+      "id": "ocr-check-limits",
+      "name": "OCR Check Limits",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 780]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, message: 'OCR feature — send image via form upload. The extracted text will be parsed as transactions.', note: 'In production, integrate Google Vision API or Tesseract OCR here.' }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-ocr-placeholder",
+      "name": "Respond OCR Placeholder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 780]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// ACCOUNTS LIST — Auth + Query\n// ============================================================\nconst crypto = require('crypto');\nconst input = $input.first().json;\nconst headers = input.headers || {};\nconst authHeader = headers.authorization || headers.Authorization || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst JWT_SECRET = $env.JWT_SECRET || 'your-jwt-secret-change-me';\n\nfunction base64urlDecode(str) {\n  str = str.replace(/-/g, '+').replace(/_/g, '/');\n  while (str.length % 4) str += '=';\n  return Buffer.from(str, 'base64').toString();\n}\nfunction verifyJWT(token, secret) {\n  try {\n    const parts = token.split('.');\n    if (parts.length !== 3) return null;\n    const payload = JSON.parse(base64urlDecode(parts[1]));\n    const sig = crypto.createHmac('sha256', secret).update(`${parts[0]}.${parts[1]}`).digest('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');\n    if (sig !== parts[2]) return null;\n    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;\n    return payload;\n  } catch (e) { return null; }\n}\n\nif (!token) return [{ json: { authenticated: false, error: 'No token' } }];\nconst payload = verifyJWT(token, JWT_SECRET);\nif (!payload) return [{ json: { authenticated: false, error: 'Invalid token' } }];\n\nreturn [{ json: { authenticated: true, user_id: payload.user_id, sql: `SELECT id, name, account_type, balance, currency FROM accounts WHERE user_id = '${payload.user_id}' ORDER BY balance DESC;` } }];"
+      },
+      "id": "accounts-auth",
+      "name": "Accounts Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 1000]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "acc-auth-ok", "leftValue": "={{ $json.authenticated }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-acc-auth",
+      "name": "IF Acc Auth OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 1000]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "db-get-accounts",
+      "name": "DB Get Accounts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 960],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, accounts: $input.all().map(i => i.json) }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-accounts",
+      "name": "Respond Accounts",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 960]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'Authentication required' }) }}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-acc-auth-err",
+      "name": "Respond Acc Auth Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 1060]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// TRANSACTIONS LIST — Auth + Query\n// ============================================================\nconst crypto = require('crypto');\nconst input = $input.first().json;\nconst headers = input.headers || {};\nconst query = input.query || {};\nconst authHeader = headers.authorization || headers.Authorization || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst JWT_SECRET = $env.JWT_SECRET || 'your-jwt-secret-change-me';\n\nfunction base64urlDecode(str) {\n  str = str.replace(/-/g, '+').replace(/_/g, '/');\n  while (str.length % 4) str += '=';\n  return Buffer.from(str, 'base64').toString();\n}\nfunction verifyJWT(token, secret) {\n  try {\n    const parts = token.split('.');\n    if (parts.length !== 3) return null;\n    const payload = JSON.parse(base64urlDecode(parts[1]));\n    const sig = crypto.createHmac('sha256', secret).update(`${parts[0]}.${parts[1]}`).digest('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');\n    if (sig !== parts[2]) return null;\n    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;\n    return payload;\n  } catch (e) { return null; }\n}\n\nif (!token) return [{ json: { authenticated: false, error: 'No token' } }];\nconst payload = verifyJWT(token, JWT_SECRET);\nif (!payload) return [{ json: { authenticated: false, error: 'Invalid token' } }];\n\nconst limit = parseInt(query.limit) || 20;\nconst offset = parseInt(query.offset) || 0;\n\nreturn [{ json: {\n  authenticated: true, user_id: payload.user_id,\n  sql: `SELECT id, item, amount, currency, category, direction, transaction_type, payment_method, notes, created_at FROM transactions WHERE user_id = '${payload.user_id}' AND is_deleted = FALSE ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset};`\n}}];"
+      },
+      "id": "txns-auth",
+      "name": "Transactions Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 1200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "txn-auth-ok", "leftValue": "={{ $json.authenticated }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-txn-auth",
+      "name": "IF Txn Auth OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 1200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "db-get-txns",
+      "name": "DB Get Transactions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 1160],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, transactions: $input.all().map(i => i.json) }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-txns",
+      "name": "Respond Transactions",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 1160]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'Authentication required' }) }}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-txn-auth-err",
+      "name": "Respond Txn Auth Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 1260]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// SUMMARY ENDPOINT — Auth + Aggregate\n// ============================================================\nconst crypto = require('crypto');\nconst input = $input.first().json;\nconst headers = input.headers || {};\nconst query = input.query || {};\nconst authHeader = headers.authorization || headers.Authorization || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst JWT_SECRET = $env.JWT_SECRET || 'your-jwt-secret-change-me';\n\nfunction base64urlDecode(str) {\n  str = str.replace(/-/g, '+').replace(/_/g, '/');\n  while (str.length % 4) str += '=';\n  return Buffer.from(str, 'base64').toString();\n}\nfunction verifyJWT(token, secret) {\n  try {\n    const parts = token.split('.');\n    if (parts.length !== 3) return null;\n    const payload = JSON.parse(base64urlDecode(parts[1]));\n    const sig = crypto.createHmac('sha256', secret).update(`${parts[0]}.${parts[1]}`).digest('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');\n    if (sig !== parts[2]) return null;\n    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;\n    return payload;\n  } catch (e) { return null; }\n}\n\nif (!token) return [{ json: { authenticated: false, error: 'No token' } }];\nconst payload = verifyJWT(token, JWT_SECRET);\nif (!payload) return [{ json: { authenticated: false, error: 'Invalid token' } }];\n\nconst period = query.period || 'week';\nconst now = new Date();\nlet startDate;\nif (period === 'month') {\n  startDate = new Date(now.getFullYear(), now.getMonth(), 1);\n} else {\n  const dow = now.getDay(); const db = dow === 0 ? 6 : dow - 1;\n  startDate = new Date(now); startDate.setDate(now.getDate() - db); startDate.setHours(0,0,0,0);\n}\n\nreturn [{ json: {\n  authenticated: true, user_id: payload.user_id, first_name: payload.first_name,\n  sql: `SELECT COALESCE(SUM(CASE WHEN direction='inflow' THEN amount ELSE 0 END),0) as total_income, COALESCE(SUM(CASE WHEN direction='outflow' THEN amount ELSE 0 END),0) as total_expense, COUNT(*) as tx_count FROM transactions WHERE user_id='${payload.user_id}' AND is_deleted=FALSE AND created_at >= '${startDate.toISOString()}';`\n}}];"
+      },
+      "id": "summary-auth",
+      "name": "Summary Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 1400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "sum-auth-ok", "leftValue": "={{ $json.authenticated }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-sum-auth",
+      "name": "IF Sum Auth OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 1400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "db-get-summary",
+      "name": "DB Get Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 1360],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, summary: $input.first().json }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-summary",
+      "name": "Respond Summary",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 1360]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'Authentication required' }) }}",
+        "options": { "responseCode": 401, "responseHeaders": { "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }] } }
+      },
+      "id": "resp-sum-auth-err",
+      "name": "Respond Sum Auth Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 1460]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// SUBSCRIPTION STATUS ENDPOINT\n// ============================================================\nconst crypto = require('crypto');\nconst input = $input.first().json;\nconst headers = input.headers || {};\nconst authHeader = headers.authorization || headers.Authorization || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst JWT_SECRET = $env.JWT_SECRET || 'your-jwt-secret-change-me';\n\nfunction base64urlDecode(str) {\n  str = str.replace(/-/g, '+').replace(/_/g, '/');\n  while (str.length % 4) str += '=';\n  return Buffer.from(str, 'base64').toString();\n}\nfunction verifyJWT(token, secret) {\n  try {\n    const parts = token.split('.');\n    if (parts.length !== 3) return null;\n    const payload = JSON.parse(base64urlDecode(parts[1]));\n    const sig = crypto.createHmac('sha256', secret).update(`${parts[0]}.${parts[1]}`).digest('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');\n    if (sig !== parts[2]) return null;\n    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;\n    return payload;\n  } catch (e) { return null; }\n}\n\nif (!token) return [{ json: { authenticated: false, error: 'No token' } }];\nconst payload = verifyJWT(token, JWT_SECRET);\nif (!payload) return [{ json: { authenticated: false, error: 'Invalid token' } }];\n\nreturn [{ json: {\n  authenticated: true, user_id: payload.user_id,\n  sql: `SELECT s.plan_name, s.status, s.current_period_end,\n    (SELECT COUNT(*) FROM usage_logs WHERE user_id = '${payload.user_id}' AND action_type = 'transaction' AND billing_period = TO_CHAR(NOW(), 'YYYY-MM')) AS tx_count,\n    (SELECT COUNT(*) FROM usage_logs WHERE user_id = '${payload.user_id}' AND action_type = 'ocr_upload' AND billing_period = TO_CHAR(NOW(), 'YYYY-MM')) AS ocr_count\n  FROM subscriptions s WHERE s.user_id = '${payload.user_id}' ORDER BY s.created_at DESC LIMIT 1;`\n}}];"
+      },
+      "id": "sub-auth",
+      "name": "Subscription Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 1600]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "sub-auth-ok", "leftValue": "={{ $json.authenticated }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-sub-auth",
+      "name": "IF Sub Auth OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 1600]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "db-get-sub",
+      "name": "DB Get Subscription",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 1560],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, subscription: $input.first().json }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "resp-sub",
+      "name": "Respond Subscription",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 1560]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'Authentication required' }) }}",
+        "options": { "responseCode": 401, "responseHeaders": { "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }] } }
+      },
+      "id": "resp-sub-auth-err",
+      "name": "Respond Sub Auth Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 1660]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// EDIT TRANSACTION ENDPOINT (direct)\n// ============================================================\nconst crypto = require('crypto');\nconst input = $input.first().json;\nconst headers = input.headers || {};\nconst authHeader = headers.authorization || headers.Authorization || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst JWT_SECRET = $env.JWT_SECRET || 'your-jwt-secret-change-me';\n\nfunction base64urlDecode(str) {\n  str = str.replace(/-/g, '+').replace(/_/g, '/');\n  while (str.length % 4) str += '=';\n  return Buffer.from(str, 'base64').toString();\n}\nfunction verifyJWT(token, secret) {\n  try {\n    const parts = token.split('.');\n    if (parts.length !== 3) return null;\n    const payload = JSON.parse(base64urlDecode(parts[1]));\n    const sig = crypto.createHmac('sha256', secret).update(`${parts[0]}.${parts[1]}`).digest('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');\n    if (sig !== parts[2]) return null;\n    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;\n    return payload;\n  } catch (e) { return null; }\n}\n\nif (!token) return [{ json: { authenticated: false, error: 'No token' } }];\nconst payload = verifyJWT(token, JWT_SECRET);\nif (!payload) return [{ json: { authenticated: false, error: 'Invalid token' } }];\n\nlet body = {};\ntry { body = typeof input.body === 'string' ? JSON.parse(input.body) : (input.body || {}); } catch(e) {}\n\nconst { transaction_id, action, new_amount } = body;\nif (!transaction_id || !action) {\n  return [{ json: { authenticated: true, success: false, error: 'transaction_id and action required' } }];\n}\n\nlet sql = '';\nlet auditSQL = '';\n\nif (action === 'delete') {\n  sql = `UPDATE transactions SET is_deleted = TRUE WHERE id = '${transaction_id}' AND user_id = '${payload.user_id}';`;\n  auditSQL = `INSERT INTO transaction_edits (transaction_id, user_id, edit_type, field_changed, old_value, new_value) VALUES ('${transaction_id}', '${payload.user_id}', 'delete', 'is_deleted', 'false', 'true');`;\n} else if (action === 'update' && new_amount) {\n  sql = `UPDATE transactions SET amount = ${parseFloat(new_amount)} WHERE id = '${transaction_id}' AND user_id = '${payload.user_id}';`;\n  auditSQL = `INSERT INTO transaction_edits (transaction_id, user_id, edit_type, field_changed, old_value, new_value) VALUES ('${transaction_id}', '${payload.user_id}', 'update', 'amount', (SELECT amount::text FROM transactions WHERE id='${transaction_id}'), '${new_amount}');`;\n}\n\nreturn [{ json: { authenticated: true, success: true, sql: sql + '\\n' + auditSQL, action, transaction_id } }];"
+      },
+      "id": "edit-tx-auth",
+      "name": "Edit TX Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 1800]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "etx-ok", "leftValue": "={{ $json.success }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-edit-tx-ok",
+      "name": "IF Edit TX OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 1800]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "db-edit-tx",
+      "name": "DB Edit TX",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 1760],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Transaction ' + $('Edit TX Auth').first().json.action + 'd successfully' }) }}",
+        "options": {
+          "responseHeaders": { "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }] }
+        }
+      },
+      "id": "resp-edit-tx-ok",
+      "name": "Respond Edit TX OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 1760]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error || 'Edit failed' }) }}",
+        "options": { "responseCode": 400, "responseHeaders": { "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }] } }
+      },
+      "id": "resp-edit-tx-err",
+      "name": "Respond Edit TX Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 1880]
+    },
+    {
+      "parameters": {
+        "rule": { "interval": [{ "triggerAtHour": 9 }] }
+      },
+      "id": "weekly-cron",
+      "name": "Weekly Report Cron",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 2100],
+      "notes": "Every Monday 9 AM. Triggers weekly report generation for all users."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.id, u.email, u.first_name FROM users u WHERE u.is_active = TRUE;",
+        "options": {}
+      },
+      "id": "db-all-users",
+      "name": "DB Get All Users",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 2100],
+      "credentials": {
+        "postgres": {
+          "id": "CONFIGURE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// WEEKLY REPORT — For each user, aggregate last week\n// ============================================================\nconst users = $input.all().map(i => i.json).filter(u => u.id);\n\nconst now = new Date();\nconst dow = now.getDay();\nconst db = dow === 0 ? 6 : dow - 1;\nconst lastMonday = new Date(now);\nlastMonday.setDate(now.getDate() - db - 7);\nlastMonday.setHours(0, 0, 0, 0);\nconst lastSunday = new Date(lastMonday);\nlastSunday.setDate(lastMonday.getDate() + 6);\nlastSunday.setHours(23, 59, 59, 999);\n\nconst opts = { day: '2-digit', month: 'short', year: 'numeric' };\nconst weekLabel = `${lastMonday.toLocaleDateString('en-GB', opts)} – ${lastSunday.toLocaleDateString('en-GB', opts)}`;\n\n// Generate SQL for all users\nconst results = users.map(user => {\n  const sql = `\n  SELECT \n    '${user.id}' as user_id,\n    '${user.email}' as email,\n    '${user.first_name}' as first_name,\n    COALESCE(SUM(CASE WHEN direction='inflow' THEN amount ELSE 0 END), 0) as total_income,\n    COALESCE(SUM(CASE WHEN direction='outflow' THEN amount ELSE 0 END), 0) as total_expense,\n    COUNT(*) as tx_count\n  FROM transactions\n  WHERE user_id = '${user.id}'\n    AND is_deleted = FALSE\n    AND created_at >= '${lastMonday.toISOString()}'\n    AND created_at <= '${lastSunday.toISOString()}';`;\n  \n  return { user_id: user.id, email: user.email, first_name: user.first_name, sql, weekLabel };\n});\n\nreturn results.map(r => ({ json: r }));"
+      },
+      "id": "weekly-aggregate",
+      "name": "Weekly Aggregate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 2100]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Register": { "main": [[{ "node": "Validate Registration", "type": "main", "index": 0 }]] },
+    "Validate Registration": { "main": [[{ "node": "IF Reg Valid", "type": "main", "index": 0 }]] },
+    "IF Reg Valid": { "main": [[{ "node": "DB Insert User", "type": "main", "index": 0 }], [{ "node": "Respond Register Error", "type": "main", "index": 0 }]] },
+    "DB Insert User": { "main": [[{ "node": "Generate Register JWT", "type": "main", "index": 0 }]] },
+    "Generate Register JWT": { "main": [[{ "node": "Respond Register OK", "type": "main", "index": 0 }]] },
+
+    "Webhook Login": { "main": [[{ "node": "Validate Login", "type": "main", "index": 0 }]] },
+    "Validate Login": { "main": [[{ "node": "IF Login Valid", "type": "main", "index": 0 }]] },
+    "IF Login Valid": { "main": [[{ "node": "DB Get User", "type": "main", "index": 0 }], [{ "node": "Respond Login Error", "type": "main", "index": 0 }]] },
+    "DB Get User": { "main": [[{ "node": "Verify Password & JWT", "type": "main", "index": 0 }]] },
+    "Verify Password & JWT": { "main": [[{ "node": "IF Login Success", "type": "main", "index": 0 }]] },
+    "IF Login Success": { "main": [[{ "node": "Respond Login OK", "type": "main", "index": 0 }], [{ "node": "Respond Login Error", "type": "main", "index": 0 }]] },
+
+    "Webhook Message": { "main": [[{ "node": "Auth Middleware", "type": "main", "index": 0 }]] },
+    "Auth Middleware": { "main": [[{ "node": "IF Authenticated", "type": "main", "index": 0 }]] },
+    "IF Authenticated": { "main": [[{ "node": "DB Check Subscription", "type": "main", "index": 0 }], [{ "node": "Respond Auth Error", "type": "main", "index": 0 }]] },
+    "DB Check Subscription": { "main": [[{ "node": "Intent Router", "type": "main", "index": 0 }]] },
+    "Intent Router": { "main": [[{ "node": "Route Switch", "type": "main", "index": 0 }]] },
+    "Route Switch": {
+      "main": [
+        [{ "node": "LLM Extract Transactions", "type": "main", "index": 0 }],
+        [{ "node": "Classify Query", "type": "main", "index": 0 }],
+        [{ "node": "Edit Engine", "type": "main", "index": 0 }],
+        [{ "node": "Account Engine", "type": "main", "index": 0 }],
+        [{ "node": "Respond Upgrade Required", "type": "main", "index": 0 }],
+        [{ "node": "Respond General Error", "type": "main", "index": 0 }]
+      ]
+    },
+
+    "LLM Extract Transactions": { "main": [[{ "node": "Parse Multi Transactions", "type": "main", "index": 0 }]] },
+    "Parse Multi Transactions": { "main": [[{ "node": "IF Transactions Valid", "type": "main", "index": 0 }]] },
+    "IF Transactions Valid": { "main": [[{ "node": "Prepare Save Transactions", "type": "main", "index": 0 }], [{ "node": "Respond TX Error", "type": "main", "index": 0 }]] },
+    "Prepare Save Transactions": { "main": [[{ "node": "DB Save Transactions", "type": "main", "index": 0 }, { "node": "DB Update Accounts", "type": "main", "index": 0 }]] },
+    "DB Save Transactions": { "main": [[{ "node": "Build TX Confirmation", "type": "main", "index": 0 }]] },
+    "Build TX Confirmation": { "main": [[{ "node": "Respond TX OK", "type": "main", "index": 0 }]] },
+
+    "Classify Query": { "main": [[{ "node": "DB Query Data", "type": "main", "index": 0 }]] },
+    "DB Query Data": { "main": [[{ "node": "Format Query Response", "type": "main", "index": 0 }]] },
+    "Format Query Response": { "main": [[{ "node": "Respond Query OK", "type": "main", "index": 0 }]] },
+
+    "Edit Engine": { "main": [[{ "node": "DB Search for Edit", "type": "main", "index": 0 }]] },
+    "DB Search for Edit": { "main": [[{ "node": "Execute Edit", "type": "main", "index": 0 }]] },
+    "Execute Edit": { "main": [[{ "node": "IF Edit OK", "type": "main", "index": 0 }]] },
+    "IF Edit OK": { "main": [[{ "node": "DB Execute Edit", "type": "main", "index": 0 }], [{ "node": "Respond Edit Error", "type": "main", "index": 0 }]] },
+    "DB Execute Edit": { "main": [[{ "node": "Respond Edit OK", "type": "main", "index": 0 }]] },
+
+    "Account Engine": { "main": [[{ "node": "IF Account OK", "type": "main", "index": 0 }]] },
+    "IF Account OK": { "main": [[{ "node": "DB Account Operation", "type": "main", "index": 0 }], [{ "node": "Respond Account Error", "type": "main", "index": 0 }]] },
+    "DB Account Operation": { "main": [[{ "node": "Respond Account OK", "type": "main", "index": 0 }]] },
+
+    "Webhook OCR Upload": { "main": [[{ "node": "OCR Auth", "type": "main", "index": 0 }]] },
+    "OCR Auth": { "main": [[{ "node": "IF OCR Auth OK", "type": "main", "index": 0 }]] },
+    "IF OCR Auth OK": { "main": [[{ "node": "OCR Check Limits", "type": "main", "index": 0 }], [{ "node": "Respond OCR Auth Error", "type": "main", "index": 0 }]] },
+    "OCR Check Limits": { "main": [[{ "node": "Respond OCR Placeholder", "type": "main", "index": 0 }]] },
+
+    "Webhook Get Accounts": { "main": [[{ "node": "Accounts Auth", "type": "main", "index": 0 }]] },
+    "Accounts Auth": { "main": [[{ "node": "IF Acc Auth OK", "type": "main", "index": 0 }]] },
+    "IF Acc Auth OK": { "main": [[{ "node": "DB Get Accounts", "type": "main", "index": 0 }], [{ "node": "Respond Acc Auth Error", "type": "main", "index": 0 }]] },
+    "DB Get Accounts": { "main": [[{ "node": "Respond Accounts", "type": "main", "index": 0 }]] },
+
+    "Webhook Get Transactions": { "main": [[{ "node": "Transactions Auth", "type": "main", "index": 0 }]] },
+    "Transactions Auth": { "main": [[{ "node": "IF Txn Auth OK", "type": "main", "index": 0 }]] },
+    "IF Txn Auth OK": { "main": [[{ "node": "DB Get Transactions", "type": "main", "index": 0 }], [{ "node": "Respond Txn Auth Error", "type": "main", "index": 0 }]] },
+    "DB Get Transactions": { "main": [[{ "node": "Respond Transactions", "type": "main", "index": 0 }]] },
+
+    "Webhook Get Summary": { "main": [[{ "node": "Summary Auth", "type": "main", "index": 0 }]] },
+    "Summary Auth": { "main": [[{ "node": "IF Sum Auth OK", "type": "main", "index": 0 }]] },
+    "IF Sum Auth OK": { "main": [[{ "node": "DB Get Summary", "type": "main", "index": 0 }], [{ "node": "Respond Sum Auth Error", "type": "main", "index": 0 }]] },
+    "DB Get Summary": { "main": [[{ "node": "Respond Summary", "type": "main", "index": 0 }]] },
+
+    "Webhook Get Subscription": { "main": [[{ "node": "Subscription Auth", "type": "main", "index": 0 }]] },
+    "Subscription Auth": { "main": [[{ "node": "IF Sub Auth OK", "type": "main", "index": 0 }]] },
+    "IF Sub Auth OK": { "main": [[{ "node": "DB Get Subscription", "type": "main", "index": 0 }], [{ "node": "Respond Sub Auth Error", "type": "main", "index": 0 }]] },
+    "DB Get Subscription": { "main": [[{ "node": "Respond Subscription", "type": "main", "index": 0 }]] },
+
+    "Webhook Edit Transaction": { "main": [[{ "node": "Edit TX Auth", "type": "main", "index": 0 }]] },
+    "Edit TX Auth": { "main": [[{ "node": "IF Edit TX OK", "type": "main", "index": 0 }]] },
+    "IF Edit TX OK": { "main": [[{ "node": "DB Edit TX", "type": "main", "index": 0 }], [{ "node": "Respond Edit TX Error", "type": "main", "index": 0 }]] },
+    "DB Edit TX": { "main": [[{ "node": "Respond Edit TX OK", "type": "main", "index": 0 }]] },
+
+    "Weekly Report Cron": { "main": [[{ "node": "DB Get All Users", "type": "main", "index": 0 }]] },
+    "DB Get All Users": { "main": [[{ "node": "Weekly Aggregate", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "master-v1-001",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "finance-tracker-saas"
+  },
+  "id": "ft-master-workflow",
+  "tags": [
+    { "name": "finance-tracker" },
+    { "name": "production" },
+    { "name": "saas" },
+    { "name": "master" }
+  ]
+}
